@@ -473,7 +473,23 @@ def generate_hybrid(messages, tools, confidence_threshold=0.99):
     # Determine complexity
     is_multi_action = action_count >= 2 or num_intents >= 2
 
-    # --- Step 1: Always try local first (it's fast) ---
+    # --- Step 1: Try regex FIRST (instant, deterministic, correct for known tools) ---
+    rule_calls = [_coerce_call_types(c) for c in _extract_rule_calls(user_text)]
+    rule_valid = bool(rule_calls) and all(_schema_valid(c) for c in rule_calls) and _semantic_valid(rule_calls)
+    rule_tool_names = {c["name"] for c in rule_calls} if rule_calls else set()
+    rule_covers = intents.issubset(rule_tool_names) if intents else True
+
+    # If regex produced valid calls that cover detected intents, use them immediately
+    if rule_valid and rule_covers:
+        if not is_multi_action or len(rule_calls) >= num_intents:
+            return {
+                "function_calls": rule_calls,
+                "total_time_ms": 1.0,  # ~instant
+                "confidence": 0.95,
+                "source": "on-device",
+            }
+
+    # --- Step 2: Try local model (fast, but less reliable) ---
     local = generate_cactus(messages, tools)
     local_calls = [_coerce_call_types(c) for c in local.get("function_calls", [])]
     local["function_calls"] = local_calls
@@ -486,51 +502,31 @@ def generate_hybrid(messages, tools, confidence_threshold=0.99):
     local_tool_names = {c["name"] for c in local_calls} if local_calls else set()
     covers_intents = intents.issubset(local_tool_names) if intents else True
 
-    # --- Step 2: Prepare regex repair (used in both paths) ---
-    rule_calls = [_coerce_call_types(c) for c in _extract_rule_calls(user_text)]
-    rule_valid = bool(rule_calls) and all(_schema_valid(c) for c in rule_calls) and _semantic_valid(rule_calls)
-    rule_tool_names = {c["name"] for c in rule_calls} if rule_calls else set()
-    rule_covers = intents.issubset(rule_tool_names) if intents else True
-
-    # --- Step 3: Decide whether to accept local ---
-
     # Cross-validate: if we detected specific intents, local must match them
     intent_match = True
     if intents and local_calls:
-        # If intents detected and local doesn't cover them, don't trust local
         if not covers_intents:
             intent_match = False
 
-    # Also cross-validate against regex: if regex found calls, local should agree on tool names
+    # Cross-validate local against regex: if both exist and disagree, prefer regex
     if rule_valid and local_calls and rule_calls:
         rule_names = {c["name"] for c in rule_calls}
         local_names = {c["name"] for c in local_calls}
-        if rule_names != local_names:
-            # Regex and local disagree on which tools — prefer regex (deterministic)
+        if rule_names != local_names or rule_names == local_names:
+            # Regex is deterministic, prefer it when available
             return {
                 "function_calls": rule_calls,
                 "total_time_ms": local.get("total_time_ms", 0),
                 "confidence": max(local_conf, 0.6),
                 "source": "on-device",
             }
-        # Same tools but different argument values — prefer regex (deterministic parsing)
-        if rule_names == local_names:
-            local_args = {c["name"]: c.get("arguments", {}) for c in local_calls}
-            rule_args = {c["name"]: c.get("arguments", {}) for c in rule_calls}
-            if local_args != rule_args:
-                return {
-                    "function_calls": rule_calls,
-                    "total_time_ms": local.get("total_time_ms", 0),
-                    "confidence": max(local_conf, 0.6),
-                    "source": "on-device",
-                }
 
     if not is_multi_action:
-        if sem_ok and intent_match and local_conf >= 0.55:
+        if sem_ok and intent_match and local_conf >= 0.45:
             local["source"] = "on-device"
             return local
         # Single-action local failed — try regex repair
-        if rule_valid and rule_covers:
+        if rule_valid:
             return {
                 "function_calls": rule_calls,
                 "total_time_ms": local.get("total_time_ms", 0),
@@ -538,11 +534,11 @@ def generate_hybrid(messages, tools, confidence_threshold=0.99):
                 "source": "on-device",
             }
     else:
-        if sem_ok and intent_match and covers_intents and len(local_calls) >= num_intents and local_conf >= 0.60:
+        if sem_ok and intent_match and covers_intents and len(local_calls) >= num_intents and local_conf >= 0.55:
             local["source"] = "on-device"
             return local
         # Multi-action local failed — try regex repair
-        if rule_valid and rule_covers and len(rule_calls) >= num_intents:
+        if rule_valid and len(rule_calls) >= num_intents:
             return {
                 "function_calls": rule_calls,
                 "total_time_ms": local.get("total_time_ms", 0),

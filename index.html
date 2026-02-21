@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kagami — Hybrid Edge-Cloud AI Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0a0a0f;--surface:rgba(255,255,255,0.035);--border:rgba(255,255,255,0.07);--text:#fff;--text-dim:rgba(255,255,255,0.4);--accent:#667eea;--accent2:#764ba2;--green:#a8e6cf;--blue:#a8c8ff;--orange:#ffd3a8;--mono:'JetBrains Mono',monospace;--sans:'DM Sans',system-ui,sans-serif}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+    ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px}
+
+    /* === HEADER === */
+    .header{
+      border-bottom:1px solid var(--border);padding:14px 28px;
+      display:flex;align-items:center;justify-content:space-between;
+      backdrop-filter:blur(24px);background:rgba(10,10,15,0.85);
+      position:sticky;top:0;z-index:10;
+    }
+    .header-left{display:flex;align-items:center;gap:14px}
+    .logo{
+      width:34px;height:34px;border-radius:8px;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.5px;
+      font-family:var(--sans);
+    }
+    .header-title{font-weight:700;font-size:16px;letter-spacing:-0.4px}
+    .header-sub{
+      font-size:10px;color:var(--text-dim);letter-spacing:1.2px;
+      text-transform:uppercase;font-weight:500;
+      display:flex;align-items:center;gap:6px;margin-top:1px;
+    }
+    .status-dot{width:5px;height:5px;border-radius:50%;display:inline-block}
+    .stats{display:flex;gap:18px;font-size:10px;color:var(--text-dim);font-family:var(--mono);letter-spacing:0.3px}
+
+    /* === CHAT === */
+    .chat-area{flex:1;overflow-y:auto;padding:28px 28px 150px;max-width:700px;width:100%;margin:0 auto}
+    .message{display:flex;margin-bottom:18px;animation:fadeSlideUp 0.35s cubic-bezier(0.16,1,0.3,1)}
+    .message.user{justify-content:flex-end}
+    .message.assistant{justify-content:flex-start}
+    .bubble{max-width:80%;padding:13px 18px;font-size:13.5px;line-height:1.65;color:var(--text)}
+    .message.user .bubble{
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      border-radius:16px 16px 4px 16px;font-weight:450;
+    }
+    .message.assistant .bubble{
+      background:var(--surface);border:1px solid var(--border);border-radius:16px 16px 16px 4px;
+    }
+
+    /* === TOOL BADGES === */
+    .tool-badge{
+      background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+      border-radius:8px;padding:10px 12px;margin-top:8px;
+    }
+    .tool-header{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+    .tool-icon{font-size:14px;opacity:0.9}
+    .tool-name{font-weight:600;color:var(--green);font-family:var(--mono);font-size:11.5px;letter-spacing:0.3px}
+    .tool-args{padding-left:22px}
+    .tool-arg{color:rgba(255,255,255,0.55);font-size:11px;line-height:1.7;font-family:var(--mono)}
+    .arg-key{color:var(--orange)}
+    .arg-sep{color:rgba(255,255,255,0.2)}
+    .arg-val{color:rgba(255,255,255,0.8)}
+
+    /* === LIVE RESULTS === */
+    .live-result{
+      background:rgba(102,126,234,0.06);border:1px solid rgba(102,126,234,0.15);
+      border-radius:8px;padding:12px 14px;margin-top:8px;animation:fadeSlideUp 0.4s ease;
+    }
+    .live-result .label{
+      font-size:9px;text-transform:uppercase;letter-spacing:1.4px;
+      color:rgba(255,255,255,0.35);margin-bottom:8px;font-weight:600;
+    }
+    .weather-card{display:flex;align-items:center;gap:14px}
+    .weather-temp{font-size:30px;font-weight:700;letter-spacing:-1px}
+    .weather-info{font-size:11px;color:rgba(255,255,255,0.5);line-height:1.6}
+    .weather-city{font-weight:600;color:#fff;font-size:13px}
+    .music-player{display:flex;align-items:center;gap:12px}
+    .music-visualizer{display:flex;align-items:flex-end;gap:2px;height:22px}
+    .music-bar{width:2.5px;background:var(--accent);border-radius:2px;animation:musicBounce 0.8s ease infinite}
+    .music-bar:nth-child(2){animation-delay:.1s}.music-bar:nth-child(3){animation-delay:.2s}
+    .music-bar:nth-child(4){animation-delay:.3s}.music-bar:nth-child(5){animation-delay:.15s}
+    .music-stop{
+      background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+      border-radius:5px;padding:3px 10px;color:rgba(255,255,255,0.5);
+      font-size:10px;cursor:pointer;font-family:var(--sans);transition:all 0.2s;letter-spacing:0.3px;
+    }
+    .music-stop:hover{background:rgba(255,255,255,0.12);color:#fff}
+
+    /* === ROUTING === */
+    .routing{display:flex;align-items:center;gap:10px;margin-top:10px;padding:4px 0}
+    .routing-badge{
+      display:flex;align-items:center;gap:4px;border-radius:16px;
+      padding:3px 9px;font-size:10px;font-weight:500;letter-spacing:0.2px;
+    }
+    .routing-badge.on-device{background:rgba(168,230,207,0.1);border:1px solid rgba(168,230,207,0.2);color:var(--green)}
+    .routing-badge.cloud{background:rgba(168,200,255,0.1);border:1px solid rgba(168,200,255,0.2);color:var(--blue)}
+    .routing-meta{font-size:10px;color:rgba(255,255,255,0.28);font-family:var(--mono)}
+
+    /* === TYPING === */
+    .typing{display:flex;gap:5px;padding:12px 18px}
+    .typing-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease infinite}
+    .typing-dot:nth-child(2){animation-delay:.2s}.typing-dot:nth-child(3){animation-delay:.4s}
+
+    /* === SUGGESTIONS === */
+    .suggestions{display:flex;flex-wrap:wrap;gap:7px;margin-top:22px;animation:fadeSlideUp 0.5s ease 0.3s both}
+    .suggestion-chip{
+      background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+      border-radius:18px;padding:7px 15px;color:rgba(255,255,255,0.55);
+      font-size:12.5px;cursor:pointer;transition:all 0.2s;font-family:var(--sans);font-weight:450;
+    }
+    .suggestion-chip:hover{background:rgba(255,255,255,0.07);border-color:rgba(102,126,234,0.3);color:rgba(255,255,255,0.9)}
+
+    /* === INPUT === */
+    .input-area{
+      position:fixed;bottom:0;left:0;right:0;padding:14px 28px 22px;
+      background:linear-gradient(transparent,rgba(10,10,15,0.96) 35%,var(--bg));
+    }
+    .input-row{max-width:700px;margin:0 auto;display:flex;gap:8px;align-items:center}
+    .input-field{
+      flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+      border-radius:12px;padding:13px 16px;color:#fff;font-size:13.5px;
+      outline:none;font-family:var(--sans);transition:border-color 0.2s;font-weight:450;
+    }
+    .input-field::placeholder{color:rgba(255,255,255,0.25);font-weight:400}
+    .input-field:focus{border-color:rgba(102,126,234,0.4)}
+    .send-btn{
+      width:44px;height:44px;border-radius:12px;border:none;color:#fff;
+      font-size:16px;cursor:pointer;display:flex;align-items:center;
+      justify-content:center;transition:all 0.2s;flex-shrink:0;
+    }
+    .send-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+    .send-btn.inactive{background:rgba(255,255,255,0.04);cursor:not-allowed;color:rgba(255,255,255,0.3)}
+    .footer-text{
+      text-align:center;font-size:9px;color:rgba(255,255,255,0.15);
+      margin-top:8px;font-family:var(--mono);letter-spacing:0.8px;text-transform:uppercase;
+    }
+
+    /* === COMPARE === */
+    .compare-toggle{
+      background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+      border-radius:6px;padding:5px 11px;color:rgba(255,255,255,0.45);
+      font-size:10px;cursor:pointer;font-family:var(--mono);transition:all 0.2s;letter-spacing:0.3px;
+    }
+    .compare-toggle:hover{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.8)}
+    .compare-panel{
+      background:rgba(12,12,20,0.96);border:1px solid rgba(255,255,255,0.08);
+      border-radius:10px;padding:16px;margin-top:14px;animation:fadeSlideUp 0.3s ease;
+    }
+    .compare-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    .compare-col h4{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;font-weight:600}
+    .compare-col.local h4{color:var(--green)}.compare-col.cloud h4{color:var(--blue)}.compare-col.hybrid h4{color:var(--orange)}
+    .compare-calls{font-family:var(--mono);font-size:10.5px;color:rgba(255,255,255,0.65);line-height:1.6}
+    .compare-meta{font-size:9.5px;color:rgba(255,255,255,0.3);margin-top:6px;font-family:var(--mono)}
+
+    @keyframes fadeSlideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{opacity:0.35}50%{opacity:1}}
+    @keyframes musicBounce{0%,100%{height:3px}50%{height:18px}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">鏡</div>
+      <div>
+        <div class="header-title">Kagami</div>
+        <div class="header-sub">
+          Hybrid Edge · Cloud
+          <span class="status-dot" id="statusDot" style="background:#fbbf24"></span>
+          <span id="statusText" style="font-size:9px;text-transform:none;letter-spacing:0.5px">Connecting</span>
+        </div>
+      </div>
+    </div>
+    <button class="compare-toggle" id="compareBtn" onclick="toggleCompare()">⚖ Compare Engines</button>
+    <div class="stats" id="stats" style="display:none">
+      <span><span style="color:#a8e6cf">●</span> <span id="localCount">0</span> on-device</span>
+      <span><span style="color:#a8c8ff">●</span> <span id="cloudCount">0</span> cloud</span>
+      <span><span id="avgLatency">0</span>ms avg</span>
+    </div>
+  </div>
+
+  <div class="chat-area" id="chatArea">
+    <div class="message assistant">
+      <div class="bubble">
+        <div style="font-weight:600;font-size:15px;margin-bottom:10px;letter-spacing:-0.3px">Welcome to Kagami</div>
+        <div style="color:rgba(255,255,255,0.55);font-size:13px;line-height:1.7">
+          Your personal productivity agent — powered by hybrid edge-cloud AI routing.
+          Simple commands run instantly on-device via a 270M parameter model. Complex tasks route to cloud intelligence.<br><br>
+          <span style="color:rgba(255,255,255,0.35);font-size:11.5px">
+            🌤 Live weather &nbsp;·&nbsp; 🎵 Music playback &nbsp;·&nbsp; 🔔 Real notifications &nbsp;·&nbsp; ⚖ Engine comparison
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="suggestions" id="suggestions">
+      <button class="suggestion-chip" onclick="sendMessage('What\'s the weather in Tokyo?')">Weather in Tokyo</button>
+      <button class="suggestion-chip" onclick="sendMessage('Play Bohemian Rhapsody')">Play Bohemian Rhapsody</button>
+      <button class="suggestion-chip" onclick="sendMessage('Remind me to stretch at 5 PM')">Remind me to stretch</button>
+      <button class="suggestion-chip" onclick="sendMessage('Set an alarm for 7 AM')">Alarm for 7 AM</button>
+      <button class="suggestion-chip" onclick="sendMessage('Play jazz and check weather in Paris')">Jazz + Paris weather</button>
+      <button class="suggestion-chip" onclick="sendMessage('Set a 2 min timer, play lo-fi beats, and remind me to drink water at 4 PM')">Multi-action demo</button>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <input class="input-field" id="inputField" placeholder="What can I help you with?" onkeydown="if(event.key==='Enter')sendMessage()">
+      <button class="send-btn inactive" id="sendBtn" onclick="sendMessage()">↑</button>
+    </div>
+    <div class="footer-text">FunctionGemma 270M · Gemini 2.0 Flash · Hybrid Routing Engine</div>
+  </div>
+
+<script>
+const API='http://localhost:8000';
+let processing=false,localCount=0,cloudCount=0,totalLatency=0,totalQueries=0,lastMessage='',currentAudio=null;
+const TI={get_weather:'🌤',set_alarm:'⏰',send_message:'💬',create_reminder:'📌',search_contacts:'👤',play_music:'🎵',set_timer:'⏱',create_note:'📝',add_calendar:'📅',translate:'🌐'};
+const WI={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'❄️',80:'🌦',81:'🌧',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
+if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();
+fetch(API+'/').then(r=>r.ok?setS(true):setS(false)).catch(()=>setS(false));
+function setS(ok){document.getElementById('statusDot').style.background=ok?'#4ade80':'#f87171';document.getElementById('statusText').textContent=ok?'Connected':'Offline'}
+document.getElementById('inputField').addEventListener('input',function(){document.getElementById('sendBtn').className=this.value.trim()?'send-btn active':'send-btn inactive'});
+
+async function execW(loc){try{
+  // Clean location: take first part before comma, expand common abbreviations
+  let clean = loc.split(',')[0].trim();
+  const abbrevs = {'UK':'United Kingdom','US':'United States','USA':'United States','UAE':'United Arab Emirates'};
+  if(abbrevs[clean.toUpperCase()]) clean = abbrevs[clean.toUpperCase()];
+  // Get the country hint from after comma if present
+  const parts = loc.split(',').map(s=>s.trim());
+  const countryHint = parts.length > 1 ? parts[1].toUpperCase() : null;
+  if(countryHint && abbrevs[countryHint]) { /* use city + country filtering */ }
+  const g=await(await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(clean)}&count=5`)).json();
+  if(!g.results?.length)return null;
+  // If country hint, try to match; otherwise pick largest city (first result with highest population)
+  let pick = g.results[0];
+  if(countryHint){
+    const hint = abbrevs[countryHint] || countryHint;
+    const match = g.results.find(r => r.country_code === countryHint || r.country.toUpperCase().includes(hint.toUpperCase()));
+    if(match) pick = match;
+  }
+  // Prefer result with highest population
+  const best = g.results.reduce((a,b) => (b.population||0) > (a.population||0) ? b : a, g.results[0]);
+  if(!countryHint) pick = best;
+  const{latitude:la,longitude:lo,name,country}=pick;
+  const w=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`)).json();
+  const c=w.current;return{city:name,country,temp:Math.round(c.temperature_2m),humidity:c.relative_humidity_2m,wind:Math.round(c.wind_speed_10m),icon:WI[c.weather_code]||'🌡'}}catch(e){return null}}
+
+function execM(song){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const gain=ctx.createGain();gain.gain.setValueAtTime(0.05,ctx.currentTime);gain.connect(ctx.destination);const ns=[261.63,329.63,392,523.25];const os=ns.map((f,i)=>{const o=ctx.createOscillator();o.type=i%2===0?'sine':'triangle';o.frequency.setValueAtTime(f,ctx.currentTime);const l=ctx.createOscillator(),lg=ctx.createGain();l.frequency.setValueAtTime(0.5+i*0.3,ctx.currentTime);lg.gain.setValueAtTime(2,ctx.currentTime);l.connect(lg);lg.connect(o.frequency);l.start();o.connect(gain);o.start();return{osc:o,lfo:l}});currentAudio={ctx,os,gain};setTimeout(()=>stopM(),30000);return true}catch(e){return false}}
+function stopM(){if(!currentAudio)return;try{currentAudio.gain.gain.setTargetAtTime(0,currentAudio.ctx.currentTime,0.3);setTimeout(()=>{currentAudio.os.forEach(o=>{o.osc.stop();o.lfo.stop()});currentAudio.ctx.close();currentAudio=null},500)}catch(e){currentAudio=null}document.querySelectorAll('.ml').forEach(el=>{el.innerHTML='<span style="color:rgba(255,255,255,0.35);font-size:11px">♪ Stopped</span>'})}
+
+function execR(title,time){if('Notification' in window&&Notification.permission==='granted')new Notification('📌 Reminder Set',{body:`"${title}" at ${time}`});const m=time.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)/i);if(m){let h=parseInt(m[1]),mn=parseInt(m[2]||'0'),mr=m[3].toLowerCase();if(mr==='pm'&&h!==12)h+=12;if(mr==='am'&&h===12)h=0;const now=new Date(),t=new Date();t.setHours(h,mn,0,0);if(t<=now)t.setDate(t.getDate()+1);const d=t-now;if(d>0&&d<7200000)setTimeout(()=>{if('Notification' in window&&Notification.permission==='granted')new Notification('📌 Reminder!',{body:title,requireInteraction:true});pT(880,.1,1)},d)}}
+function execTi(mins){const end=Date.now()+mins*60000;if('Notification' in window&&Notification.permission==='granted')new Notification('⏱ Timer',{body:`${mins}min started`,silent:true});setTimeout(()=>{if('Notification' in window&&Notification.permission==='granted')new Notification('⏱ Done!',{body:`${mins}min timer finished`,requireInteraction:true});[0,.3,.6].forEach(d=>pT(1046.5,.15,.25,d))},mins*60000);return end}
+function execA(h,m){if('Notification' in window&&Notification.permission==='granted'){const ts=`${h%12||12}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`;new Notification('⏰ Alarm Set',{body:`${ts}`,silent:true})}}
+function pT(f,v,d,dl){try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(f,c.currentTime+(dl||0));g.gain.setValueAtTime(v,c.currentTime+(dl||0));g.gain.exponentialRampToValueAtTime(.001,c.currentTime+(dl||0)+d);o.connect(g);g.connect(c.destination);o.start(c.currentTime+(dl||0));o.stop(c.currentTime+(dl||0)+d+.1)}catch(e){}}
+
+function wxC(w){if(!w)return'<div class="live-result"><div class="label">Weather</div><span style="color:rgba(255,255,255,0.4);font-size:12px">Could not fetch weather data</span></div>';return`<div class="live-result"><div class="label">Live Weather</div><div class="weather-card"><span style="font-size:34px">${w.icon}</span><div><div class="weather-city">${w.city}, ${w.country}</div><div class="weather-temp">${w.temp}°C</div><div class="weather-info">Humidity ${w.humidity}% · Wind ${w.wind} km/h</div></div></div></div>`}
+function muC(s,ok){if(!ok)return'';return`<div class="live-result"><div class="label">Now Playing</div><div class="music-player ml"><div class="music-visualizer"><div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div></div><span style="flex:1;font-size:12.5px;font-weight:500">♪ ${esc(s)}</span><button class="music-stop" onclick="stopM()">■ Stop</button></div></div>`}
+function tiC(mins,end){const id='t_'+Date.now();setTimeout(()=>tk(id,end),100);return`<div class="live-result"><div class="label">Timer</div><div style="display:flex;align-items:center;gap:10px"><span style="font-size:22px">⏱</span><span id="${id}" style="font-family:var(--mono);font-size:20px;font-weight:600">${mins}:00</span><span style="font-size:11px;color:rgba(255,255,255,0.35)">${mins} min</span></div></div>`}
+function tk(id,end){const el=document.getElementById(id);if(!el)return;const r=Math.max(0,end-Date.now()),m=Math.floor(r/60000),s=Math.floor((r%60000)/1000);el.textContent=`${m}:${String(s).padStart(2,'0')}`;if(r>0)setTimeout(()=>tk(id,end),1000);else el.textContent='0:00 ✓'}
+function reC(title,time){return`<div class="live-result"><div class="label">Reminder</div><div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">🔔</span><div><div style="font-weight:600;font-size:12.5px">${esc(title)}</div><div style="font-size:11px;color:rgba(255,255,255,0.4)">at ${esc(time)}</div></div></div></div>`}
+
+async function sendMessage(text){
+  const inp=document.getElementById('inputField'),msg=text||inp.value;
+  if(!msg.trim()||processing)return;
+  inp.value='';document.getElementById('sendBtn').className='send-btn inactive';
+  processing=true;lastMessage=msg;
+  const s=document.getElementById('suggestions');if(s)s.style.display='none';
+  document.getElementById('compareBtn').style.display='inline-flex';
+  addMsg('user',msg);addTyp();
+  try{
+    const data=await(await fetch(API+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})})).json();
+    remTyp();let live='';
+    for(const c of(data.function_calls||[])){
+      if(c.name==='get_weather'&&c.arguments?.location){const w=await execW(c.arguments.location);live+=wxC(w)}
+      if(c.name==='play_music'&&c.arguments?.song){const ok=execM(c.arguments.song);live+=muC(c.arguments.song,ok)}
+      if(c.name==='create_reminder'&&c.arguments?.title){execR(c.arguments.title,c.arguments.time||'');live+=reC(c.arguments.title,c.arguments.time||'now')}
+      if(c.name==='set_timer'&&c.arguments?.minutes){const e=execTi(c.arguments.minutes);live+=tiC(c.arguments.minutes,e)}
+      if(c.name==='set_alarm')execA(c.arguments.hour||0,c.arguments.minute||0);
+    }
+    addRep(data,live);updS(data);
+  }catch(e){remTyp();addMsg('assistant','Could not reach API — ensure backend is running on localhost:8000')}
+  processing=false;inp.focus();
+}
+
+function addMsg(role,text){const a=document.getElementById('chatArea'),d=document.createElement('div');d.className=`message ${role}`;d.innerHTML=`<div class="bubble">${esc(text)}</div>`;a.appendChild(d);a.scrollTop=a.scrollHeight}
+function addRep(data,live){
+  const a=document.getElementById('chatArea'),d=document.createElement('div');d.className='message assistant';
+  let h=`<div class="bubble"><div style="margin-bottom:${(data.function_calls||[]).length?6:0}px">${esc(data.message)}</div>`;
+  for(const c of(data.function_calls||[])){
+    const ic=TI[c.name]||'⚙️';
+    h+=`<div class="tool-badge"><div class="tool-header"><span class="tool-icon">${ic}</span><span class="tool-name">${c.name}()</span></div><div class="tool-args">`;
+    for(const[k,v] of Object.entries(c.arguments||{}))h+=`<div class="tool-arg"><span class="arg-key">${k}</span><span class="arg-sep"> → </span><span class="arg-val">${JSON.stringify(v)}</span></div>`;
+    h+=`</div></div>`;
+  }
+  h+=live||'';
+  const isL=data.source==='on-device',conf=data.confidence!=null?(data.confidence*100).toFixed(0):'—',ms=data.total_time_ms!=null?Math.round(data.total_time_ms):'—';
+  h+=`<div class="routing"><div class="routing-badge ${isL?'on-device':'cloud'}"><span class="status-dot" style="background:${isL?'#a8e6cf':'#a8c8ff'}"></span>${isL?'On-Device':'Cloud'}</div><span class="routing-meta">${ms}ms · ${conf}% conf</span></div></div>`;
+  d.innerHTML=h;a.appendChild(d);a.scrollTop=a.scrollHeight;
+}
+function addTyp(){const a=document.getElementById('chatArea'),d=document.createElement('div');d.id='typInd';d.className='typing';d.innerHTML='<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';a.appendChild(d);a.scrollTop=a.scrollHeight}
+function remTyp(){const e=document.getElementById('typInd');if(e)e.remove()}
+function updS(data){if(data.source==='on-device')localCount++;else cloudCount++;totalLatency+=(data.total_time_ms||0);totalQueries++;document.getElementById('stats').style.display='flex';document.getElementById('localCount').textContent=localCount;document.getElementById('cloudCount').textContent=cloudCount;document.getElementById('avgLatency').textContent=Math.round(totalLatency/totalQueries)}
+
+async function toggleCompare(){
+  if(!lastMessage)return;const ex=document.getElementById('cmpPanel');if(ex){ex.remove();return}
+  try{
+    const data=await(await fetch(API+'/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:lastMessage})})).json();
+    const a=document.getElementById('chatArea'),p=document.createElement('div');p.id='cmpPanel';p.className='compare-panel';
+    p.innerHTML=`<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:12px;font-family:var(--mono)">⚖ "${esc(lastMessage)}"</div>
+    <div class="compare-grid">
+      <div class="compare-col local"><h4>⚡ Local 270M</h4><div class="compare-calls">${fC(data.local.function_calls)}</div><div class="compare-meta">${Math.round(data.local.total_time_ms)}ms · ${(data.local.confidence*100).toFixed(0)}%</div></div>
+      <div class="compare-col cloud"><h4>☁ Gemini Cloud</h4><div class="compare-calls">${fC(data.cloud.function_calls)}</div><div class="compare-meta">${Math.round(data.cloud.total_time_ms)}ms</div></div>
+      <div class="compare-col hybrid"><h4>⚡ Kagami Hybrid</h4><div class="compare-calls">${fC(data.hybrid.function_calls)}</div><div class="compare-meta">${Math.round(data.hybrid.total_time_ms)}ms · ${data.hybrid.source}</div></div>
+    </div>`;
+    a.appendChild(p);a.scrollTop=a.scrollHeight;
+  }catch(e){console.error(e)}
+}
+
+function fC(calls){if(!calls?.length)return'<span style="color:rgba(255,255,255,0.25)">No calls</span>';return calls.map(c=>{const ic=TI[c.name]||'⚙️';const args=Object.entries(c.arguments||{}).map(([k,v])=>`${k}=${JSON.stringify(v)}`).join(', ');return`${ic} ${c.name}(${args})`}).join('<br>')}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+</script>
+</body>
+</html>
